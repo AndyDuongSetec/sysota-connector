@@ -21,7 +21,6 @@ class Util{
     }
 }
 
-
 fun File.calculateChecksum(algorithm: String = "MD5"): String {
     val md = MessageDigest.getInstance(algorithm)
     this.inputStream().use { fis ->
