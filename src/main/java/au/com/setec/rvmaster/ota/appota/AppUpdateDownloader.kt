@@ -302,7 +302,12 @@ class AppUpdateDownloader @Inject constructor(
                     logW("Warning - response content type is $contentType for $formattedUrlString")
                 }
 
-                val totalSize = if (expectedTotalSize > 0) expectedTotalSize else connection.contentLengthLong
+                val contentLengthHeader = connection.getHeaderField("Content-Length")?.toLongOrNull()
+                val totalSize = if (expectedTotalSize > 0) {
+                    expectedTotalSize
+                } else {
+                    contentLengthHeader ?: connection.contentLength.toLong()
+                }
 
                 withContext(Dispatchers.Main) {
                     if (totalSize > 0) {
