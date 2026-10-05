@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ProgressBar xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="?android:attr/progressBarStyleHorizontal"
+    android:id="@+id/update_progress"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:indeterminate="false"
+    android:max="100"
+    android:paddingTop="@dimen/upgrade_progressbar_top_padding"
+    android:paddingStart="@dimen/upgrade_progressbar_side_padding"
+    android:paddingEnd="@dimen/upgrade_progressbar_side_padding"
+    android:progressDrawable="@drawable/progressbar_upgrade"
+    tools:progress="45" />

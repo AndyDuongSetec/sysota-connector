@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="upgrade_progressbar_top_padding">16dp</dimen>
+    <dimen name="upgrade_progressbar_side_padding">25dp</dimen>
+    <dimen name="firmware_progressbar_stroke_width">1dp</dimen>
+</resources>

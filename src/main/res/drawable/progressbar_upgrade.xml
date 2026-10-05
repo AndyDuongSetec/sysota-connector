@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="100dp"/>
+            <solid android:color="@color/colorBackgroundShared"/>
+            <stroke
+                android:width="@dimen/firmware_progressbar_stroke_width"
+                android:color="@color/colorSeparatorShared"/>
+        </shape>
+    </item>
+
+    <item android:id="@android:id/secondaryProgress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="100dp"/>
+                <stroke
+                    android:width="@dimen/firmware_progressbar_stroke_width"
+                    android:color="@color/colorSeparatorShared"/>
+                <gradient
+                    android:angle="270"
+                    android:endColor="@color/colorHighlightedButtonEndBackground"
+                    android:startColor="@color/colorHighlightedButtonStartBackground"/>
+            </shape>
+        </clip>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="100dp"/>
+                <stroke
+                    android:width="@dimen/firmware_progressbar_stroke_width"
+                    android:color="@color/colorSeparatorShared"/>
+                <gradient
+                    android:angle="270"
+                    android:endColor="@color/colorHighlightedButtonEndBackground"
+                    android:startColor="@color/colorHighlightedButtonStartBackground"/>
+            </shape>
+        </clip>
+    </item>
+</layer-list>

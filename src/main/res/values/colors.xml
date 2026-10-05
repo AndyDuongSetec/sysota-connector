@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorBackgroundShared">#FFFFFF</color>
+    <color name="colorSeparatorShared">#EDEDED</color>
+    <color name="colorHighlightedButtonStartBackground">#5FDBFF</color>
+    <color name="colorHighlightedButtonEndBackground">#268EFF</color>
+</resources>
