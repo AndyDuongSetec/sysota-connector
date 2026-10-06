@@ -27,6 +27,7 @@ import kotlin.coroutines.resume
 
 @Singleton
 class AppUpdateUseCase @Inject constructor(
+    private val context: Context,
     private val downloader: AppUpdateDownloader,
     @param:Named("COMMANDER_PACKAGE_PREFIX") val commanderPackagePrefix: String = "",
 ) {
@@ -44,10 +45,10 @@ class AppUpdateUseCase @Inject constructor(
         private const val PROVIDER_AUTHORITY_SUFFIX = ".provider"
     }
 
-    fun createInstallIntent(context: Context, file: File): Intent {
+    fun createInstallIntent(file: File, ctx: Context = context): Intent {
         val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}$PROVIDER_AUTHORITY_SUFFIX",
+            ctx,
+            "${ctx.packageName}$PROVIDER_AUTHORITY_SUFFIX",
             file
         )
         return Intent(Intent.ACTION_VIEW).apply {
@@ -58,12 +59,12 @@ class AppUpdateUseCase @Inject constructor(
         }
     }
 
-    fun sendMonitorCommandToCommander(context: Context) {
+    fun sendMonitorCommandToCommander(ctx: Context = context) {
         val intent = Intent(actionRequestMonitorApp).apply {
             component = ComponentName(commanderPackagePrefix, commanderReceiverClass)
-            putExtra(EXTRA_PACKAGE_NAME, context.packageName)
+            putExtra(EXTRA_PACKAGE_NAME, ctx.packageName)
         }
-        context.sendBroadcast(intent)
+        ctx.sendBroadcast(intent)
     }
 
     private suspend fun fetchRemoteConfig(
@@ -108,11 +109,11 @@ class AppUpdateUseCase @Inject constructor(
     }
 
     suspend fun fetchAndCheckConfig(
-        context: Context,
-        configKey: String
+        configKey: String,
+        ctx: Context = context
     ): Result<RemoteConfigResponse> = withContext(Dispatchers.IO) {
         try {
-            if (!au.com.setec.rvmaster.Util.isInternetConnected(context)) {
+            if (!au.com.setec.rvmaster.Util.isInternetConnected(ctx)) {
                 logW("fetchAndCheckConfig aborted: No internet connection")
                 return@withContext Result.failure(IllegalStateException("No internet connection"))
             }
@@ -125,8 +126,8 @@ class AppUpdateUseCase @Inject constructor(
             val gson = Gson()
             val remoteConfig = gson.fromJson(jsonString, RemoteConfigResponse::class.java)
 
-            val currentPackage = context.packageName
-            val currentCode = getCurrentVersionCode(context)
+            val currentPackage = ctx.packageName
+            val currentCode = getCurrentVersionCode(ctx)
             val remoteCode = remoteConfig.code ?: 0
 
             val targetPackage = remoteConfig.packageName
@@ -154,9 +155,14 @@ class AppUpdateUseCase @Inject constructor(
         }
     }
 
-    fun getCurrentVersionCode(context: Context): Int {
+    suspend fun fetchAndCheckConfig(
+        context: Context,
+        configKey: String
+    ): Result<RemoteConfigResponse> = fetchAndCheckConfig(configKey = configKey, ctx = context)
+
+    fun getCurrentVersionCode(ctx: Context = context): Int {
         return try {
-            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            val pInfo = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 pInfo.longVersionCode.toInt()
             } else {
@@ -171,14 +177,14 @@ class AppUpdateUseCase @Inject constructor(
 
     suspend fun downloadAndVerifyApk(
         config: RemoteConfigResponse,
-        context: Context,
         onProgress: (progress: Int, isIndeterminate: Boolean) -> Unit,
+        ctx: Context = context,
     ): Result<File> = withContext(Dispatchers.IO) {
         val apkFileName = config.apkFileName ?: ""
         val md5CheckSum = config.checksum
 
-        sendMonitorCommandToCommander(context)
-        cleanOldApkCache(context)
+        sendMonitorCommandToCommander(ctx)
+        cleanOldApkCache(ctx)
 
         val candidateFileIds = buildSet {
             if (apkFileName.isNotBlank()) {
@@ -188,7 +194,7 @@ class AppUpdateUseCase @Inject constructor(
             }
         }.toList()
 
-        val localFile = createTempApkFile(context, apkFileName)
+        val localFile = createTempApkFile(apkFileName, ctx)
 
         logD("Starting download - storageType=${config.storageType}, candidateFileIds=$candidateFileIds, tempFile=${localFile.absolutePath}")
 
@@ -197,7 +203,7 @@ class AppUpdateUseCase @Inject constructor(
                 storageType = config.storageType,
                 candidateFileIds = candidateFileIds,
                 config = config,
-                context = context,
+                context = ctx,
                 localFile = localFile,
                 onProgress = onProgress
             )
@@ -224,19 +230,19 @@ class AppUpdateUseCase @Inject constructor(
         }
     }
 
-    private fun cleanOldApkCache(context: Context) {
+    private fun cleanOldApkCache(ctx: Context = context) {
         try {
-            context.cacheDir.listFiles()?.filter { it.name.endsWith(APK_EXTENSION) }?.forEach { oldFile ->
+            ctx.cacheDir.listFiles()?.filter { it.name.endsWith(APK_EXTENSION) }?.forEach { oldFile ->
                 oldFile.delete()
             }
         } catch (_: Exception) {}
     }
 
-    private fun createTempApkFile(context: Context, apkFileName: String): File {
+    private fun createTempApkFile(apkFileName: String, ctx: Context = context): File {
         val safePrefix = File(apkFileName).nameWithoutExtension
             .replace(Regex("[^a-zA-Z0-9_-]"), "_")
             .let { if (it.length < 3) "ota_$it" else it }
-        return File.createTempFile(safePrefix, APK_EXTENSION, context.cacheDir)
+        return File.createTempFile(safePrefix, APK_EXTENSION, ctx.cacheDir)
     }
 }
 

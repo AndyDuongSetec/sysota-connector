@@ -6,6 +6,8 @@ import com.google.gson.annotations.SerializedName
 data class RemoteConfigResponse(
     @SerializedName("code")
     val code: Int?,
+    @SerializedName("version")
+    var version: String?,
     @SerializedName("package")
     var packageName: String?,
     @SerializedName("apkFileName")

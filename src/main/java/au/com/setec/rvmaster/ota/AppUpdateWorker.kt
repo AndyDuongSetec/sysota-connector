@@ -24,7 +24,6 @@ class AppUpdateWorker(
         const val CONFIG_ERROR_RESPONSE = "CONFIG_ERROR_RESPONSE"
         const val KEY_INTERVAL_MINUTES = "KEY_INTERVAL_MINUTES"
         const val KEY_FIREBASE_REMOTE_CONFIG_KEY = "FIREBASE_REMOTE_CONFIG_KEY"
-        const val TAG_APP_OTA = "AppOTA"
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -33,13 +32,10 @@ class AppUpdateWorker(
             val client = Client(appContext)
             val storage = Storage(client)
             val downloader = AppUpdateDownloader(storage = storage)
-            val useCase = AppUpdateUseCase(downloader = downloader)
+            val useCase = AppUpdateUseCase(context = appContext, downloader = downloader)
 
             val configKey = inputData.getString(KEY_FIREBASE_REMOTE_CONFIG_KEY) ?: ""
-            val checkResult = useCase.fetchAndCheckConfig(
-                appContext,
-                configKey
-            )
+            val checkResult = useCase.fetchAndCheckConfig(configKey)
 
             checkResult.fold(
                 onSuccess = { remoteConfig ->

@@ -1,7 +1,7 @@
 package au.com.setec.rvmaster.ota
 
-import android.content.Intent
 import au.com.setec.rvmaster.ota.appota.RemoteConfigResponse
+import java.io.File
 
 sealed class AppUpdateUiState {
     object Idle : AppUpdateUiState()
@@ -24,7 +24,7 @@ sealed class AppUpdateUiState {
     ) : AppUpdateUiState()
 
     data class ReadyToInstall(
-        val installIntent: Intent,
+        val apkFile: File,
     ) : AppUpdateUiState()
 
     data class ChecksumMismatch(

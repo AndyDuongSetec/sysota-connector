@@ -3,7 +3,7 @@ package au.com.setec.rvmaster
 import android.util.Log
 import timber.log.Timber
 
-private const val TAG_APP_OTA = "AppOTA"
+const val TAG_APP_OTA = "AppOTA"
 const val TAG_AUTO_DATE_TIME = "AutoDateTime"
 
 fun logD(message: String, tag: String = TAG_APP_OTA) {
