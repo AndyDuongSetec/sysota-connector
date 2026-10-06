@@ -6,17 +6,16 @@ import android.net.NetworkCapabilities
 import java.io.File
 import java.security.MessageDigest
 
-class Util{
-    companion object{
-        fun isInternetConnected(context: Context): Boolean {
-            return try {
-                val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                val activeNetwork = cm?.activeNetwork ?: return false
-                val capabilities = cm.getNetworkCapabilities(activeNetwork) ?: return false
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            } catch (_: Exception) {
-                false
-            }
+object Util {
+    @JvmStatic
+    fun isInternetConnected(context: Context): Boolean {
+        return try {
+            val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val activeNetwork = cm?.activeNetwork ?: return false
+            val capabilities = cm.getNetworkCapabilities(activeNetwork) ?: return false
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (_: Exception) {
+            false
         }
     }
 }
