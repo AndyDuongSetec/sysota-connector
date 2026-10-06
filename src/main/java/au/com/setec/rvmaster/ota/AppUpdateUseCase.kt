@@ -6,13 +6,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.content.FileProvider
 import au.com.setec.rvmaster.calculateChecksum
-import au.com.setec.rvmaster.ota.appota.AppUpdateDownloader
-import au.com.setec.rvmaster.ota.appota.RemoteConfigResponse
 import au.com.setec.rvmaster.logD
 import au.com.setec.rvmaster.logE
 import au.com.setec.rvmaster.logI
 import au.com.setec.rvmaster.logW
-import au.com.setec.sysotaconnector.BuildConfig
+import au.com.setec.rvmaster.ota.appota.AppUpdateDownloader
+import au.com.setec.rvmaster.ota.appota.RemoteConfigResponse
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
 import com.google.gson.Gson
@@ -22,16 +21,23 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import javax.inject.Named
+import javax.inject.Singleton
 import kotlin.coroutines.resume
 
+@Singleton
 class AppUpdateUseCase @Inject constructor(
-    private val downloader: AppUpdateDownloader
+    private val downloader: AppUpdateDownloader,
+    @param:Named("COMMANDER_PACKAGE_PREFIX") val commanderPackagePrefix: String = "",
 ) {
 
+    private val commanderReceiverClass: String
+        get() = "$commanderPackagePrefix.SystemCommandReceiver"
+
+    private val actionRequestMonitorApp: String
+        get() = "$commanderPackagePrefix.REQUEST_MONITOR_APP"
+
     private companion object {
-        private const val COMMANDER_PACKAGE_PREFIX = BuildConfig.COMMANDER_PACKAGE_PREFIX
-        private const val COMMANDER_RECEIVER_CLASS = "$COMMANDER_PACKAGE_PREFIX.SystemCommandReceiver"
-        private const val ACTION_REQUEST_MONITOR_APP = "$COMMANDER_PACKAGE_PREFIX.REQUEST_MONITOR_APP"
         private const val EXTRA_PACKAGE_NAME = "package_name"
         private const val MIME_TYPE_APK = "application/vnd.android.package-archive"
         private const val APK_EXTENSION = ".apk"
@@ -53,8 +59,8 @@ class AppUpdateUseCase @Inject constructor(
     }
 
     fun sendMonitorCommandToCommander(context: Context) {
-        val intent = Intent(ACTION_REQUEST_MONITOR_APP).apply {
-            component = ComponentName(COMMANDER_PACKAGE_PREFIX, COMMANDER_RECEIVER_CLASS)
+        val intent = Intent(actionRequestMonitorApp).apply {
+            component = ComponentName(commanderPackagePrefix, commanderReceiverClass)
             putExtra(EXTRA_PACKAGE_NAME, context.packageName)
         }
         context.sendBroadcast(intent)
@@ -147,8 +153,6 @@ class AppUpdateUseCase @Inject constructor(
             Result.failure(e)
         }
     }
-
-
 
     fun getCurrentVersionCode(context: Context): Int {
         return try {
@@ -255,4 +259,3 @@ fun verifyFileChecksum(file: File, expectedChecksum: String?): Boolean {
     logD("Checksum verification ($algorithm) - Calculated: $calculated, Expected: $trimmedExpected, Match: $isMatch")
     return isMatch
 }
-

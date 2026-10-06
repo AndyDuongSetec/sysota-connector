@@ -12,7 +12,6 @@ android {
     defaultConfig {
         minSdk 23
         consumerProguardFiles 'consumer-rules.pro'
-        buildConfigField 'String', 'COMMANDER_PACKAGE_PREFIX', '"com.system.nexussyscommander"'
         buildConfigField 'String', 'APPWRITE_STORAGE_BUCKET_ID', '"ota-updates"'
     }
 

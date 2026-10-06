@@ -9,7 +9,6 @@ import au.com.setec.rvmaster.logD
 import au.com.setec.rvmaster.logE
 import au.com.setec.rvmaster.logI
 import au.com.setec.rvmaster.logW
-import au.com.setec.sysotaconnector.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -18,14 +17,17 @@ import org.apache.commons.net.ntp.NTPUDPClient
 import org.json.JSONObject
 import java.net.InetAddress
 import java.util.Calendar
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
-class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
+class AutoDateTimeUseCase @Inject constructor(
     private val context: Context,
     client: OkHttpClient = OkHttpClient(),
+    @param:Named("COMMANDER_PACKAGE_PREFIX") val commanderPackagePrefix: String = DEFAULT_COMMANDER_PACKAGE_PREFIX,
 ) {
 
     private val client: OkHttpClient = client.newBuilder()
@@ -33,17 +35,21 @@ class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
         .readTimeout(HTTP_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .build()
 
+    private val commanderReceiverClass: String
+        get() = "$commanderPackagePrefix.SystemCommandReceiver"
+
+    private val actionSetTimeZone: String
+        get() = "$commanderPackagePrefix.SET_TIME_ZONE"
+
+    private val actionSetTime: String
+        get() = "$commanderPackagePrefix.SET_TIME"
+
     private companion object {
+        private const val DEFAULT_COMMANDER_PACKAGE_PREFIX = "com.system.nexussyscommander"
         private const val IP_API_URL = "http://ip-api.com/json/"
         private val NTP_HOSTS = listOf("time.google.com", "time.cloudflare.com", "pool.ntp.org")
         private const val NTP_TIMEOUT_MS = 3000
         private const val HTTP_TIMEOUT_MS = 5000L
-
-        private const val COMMANDER_PACKAGE_PREFIX = BuildConfig.COMMANDER_PACKAGE_PREFIX
-        private const val COMMANDER_RECEIVER_CLASS = "$COMMANDER_PACKAGE_PREFIX.SystemCommandReceiver"
-
-        private const val ACTION_SET_TIME_ZONE = "$COMMANDER_PACKAGE_PREFIX.SET_TIME_ZONE"
-        private const val ACTION_SET_TIME = "$COMMANDER_PACKAGE_PREFIX.SET_TIME"
 
         private const val EXTRA_TIMEZONE = "timezone"
         private const val EXTRA_PACKAGE_NAME = "package_name"
@@ -100,7 +106,7 @@ class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
                 false
             }
 
-            val calendar = getNetworkTime()
+            val calendar = getNetworkTime(timezone)
             val timeUpdated = if (calendar != null) {
                 val systemTime = SystemTime.fromCalendar(calendar)
                 changeSystemTime(systemTime, packageName)
@@ -157,11 +163,12 @@ class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
     }
 
     /** Retrieves time from NTP servers with automatic failover */
-    private suspend fun getNetworkTime(): Calendar? = withContext(Dispatchers.IO) {
+    private suspend fun getNetworkTime(timezone: String? = null): Calendar? = withContext(Dispatchers.IO) {
+        val tz = timezone?.takeIf { it.isNotBlank() }?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
         for (host in NTP_HOSTS) {
-            val calendar = fetchNtpTimeFromHost(host)
+            val calendar = fetchNtpTimeFromHost(host, tz)
             if (calendar != null) {
-                logD("Fetched network time from host: $host", TAG_AUTO_DATE_TIME)
+                logD("Fetched network time from host: $host (TimeZone: ${tz.id})", TAG_AUTO_DATE_TIME)
                 return@withContext calendar
             }
         }
@@ -170,7 +177,7 @@ class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
     }
 
     @Suppress("DEPRECATION")
-    private fun fetchNtpTimeFromHost(host: String): Calendar? {
+    private fun fetchNtpTimeFromHost(host: String, timeZone: TimeZone): Calendar? {
         var ntpClient: NTPUDPClient? = null
         return try {
             ntpClient = NTPUDPClient().apply {
@@ -180,7 +187,7 @@ class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
             val address = InetAddress.getByName(host)
             val response = ntpClient.getTime(address)
             val utcMillis = response.message.transmitTimeStamp.time
-            Calendar.getInstance().apply { timeInMillis = utcMillis }
+            Calendar.getInstance(timeZone).apply { timeInMillis = utcMillis }
         } catch (ex: Throwable) {
             logW("Failed to fetch time from $host: ${ex.message}", TAG_AUTO_DATE_TIME)
             null
@@ -191,8 +198,8 @@ class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
 
     private fun changeSystemTimeZone(timezone: String, packageName: String) {
         logI("Broadcasting timezone change to '$timezone'", TAG_AUTO_DATE_TIME)
-        val intent = Intent(ACTION_SET_TIME_ZONE).apply {
-            component = ComponentName(COMMANDER_PACKAGE_PREFIX, COMMANDER_RECEIVER_CLASS)
+        val intent = Intent(actionSetTimeZone).apply {
+            component = ComponentName(commanderPackagePrefix, commanderReceiverClass)
             putExtra(EXTRA_TIMEZONE, timezone)
             putExtra(EXTRA_PACKAGE_NAME, packageName)
         }
@@ -201,8 +208,8 @@ class AutoDateTimeUseCase @JvmOverloads @Inject constructor(
 
     private fun changeSystemTime(systemTime: SystemTime, packageName: String) {
         logI("Broadcasting system time change to ${systemTime.toFormattedString()}", TAG_AUTO_DATE_TIME)
-        val intent = Intent(ACTION_SET_TIME).apply {
-            component = ComponentName(COMMANDER_PACKAGE_PREFIX, COMMANDER_RECEIVER_CLASS)
+        val intent = Intent(actionSetTime).apply {
+            component = ComponentName(commanderPackagePrefix, commanderReceiverClass)
             putExtra(EXTRA_YEAR, systemTime.year)
             putExtra(EXTRA_MONTH, systemTime.month - 1) // SystemCommander expects 0–11 (Calendar.MONTH)
             putExtra(EXTRA_DAY, systemTime.day)
