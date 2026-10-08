@@ -3,6 +3,7 @@ package au.com.setec.rvmaster.ota.appota
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
+import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -125,44 +126,21 @@ class AppUpdateHelper {
             showDialogSafely(activity, dialog)
         }
 
-        fun updateOtaIconVisibility(show: Boolean) {
-            otaIconView?.visibility = if (show) View.VISIBLE else View.GONE
-            if (show) {
-                otaIconView?.setOnClickListener {
-                    if (autoUpdateAppDialog?.isShowing == true) {
-                        return@setOnClickListener
-                    }
-                    viewModel.latestAvailableConfig?.let { config ->
-                        showUpdateDialog(config)
-                    } ?: run {
-                        autoUpdateAppDialog?.let { dialog ->
-                            if (!dialog.isShowing) {
-                                showDialogSafely(activity, dialog)
-                            }
-                        }
-                    }
-                }
-            } else {
-                otaIconView?.setOnClickListener(null)
-            }
-        }
 
         viewModel.uiState.observe(activity, Observer { state ->
             when (state) {
                 is AppUpdateUiState.Idle -> {
                     logD("State is Idle")
                     dismissDialog()
-                    updateOtaIconVisibility(false)
                 }
                 is AppUpdateUiState.ConfigEvaluated -> {
                     logD("Config evaluated: updateAvailable=${state.updateAvailable}, currentCode=${state.currentVersionCode}, remoteCode=${state.remoteVersionCode}")
-                    updateOtaIconVisibility(state.updateAvailable)
                     if (!state.updateAvailable) {
                         dismissDialog()
                     }
                 }
                 is AppUpdateUiState.PromptConfirmation -> {
-                    updateOtaIconVisibility(true)
+                    logD("Prompting user for update confirmation for code=${state.config.code}")
                     showUpdateDialog(state.config)
                 }
                 is AppUpdateUiState.Downloading -> {
@@ -206,6 +184,9 @@ class AppUpdateHelper {
                 }
                 AppUpdateUiState.Loading -> {
                     logD("State is Loading")
+                }
+                else -> {
+                    logW("Unhandled  AppUpdateUiState: $state")
                 }
             }
         })
