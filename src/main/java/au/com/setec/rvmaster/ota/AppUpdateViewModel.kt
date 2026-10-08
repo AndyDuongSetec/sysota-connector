@@ -2,11 +2,6 @@ package au.com.setec.rvmaster.ota
 
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import android.os.Build
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -47,7 +42,6 @@ class AppUpdateViewModel @Inject constructor(
     private val gson = Gson()
     private var downloadJob: Job? = null
     private var workJob: Job? = null
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     var latestAvailableConfig: RemoteConfigResponse? = null
         private set
@@ -57,75 +51,6 @@ class AppUpdateViewModel @Inject constructor(
 
     private var wasInternetOn: Boolean = false
     private var isRetryRequested: Boolean = false
-
-    init {
-        startNetworkMonitoring()
-    }
-
-    private fun startNetworkMonitoring() {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
-        if (networkCallback != null) return
-
-        wasInternetOn = isInternetConnected()
-
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                checkAndTriggerInternetRestored()
-            }
-
-            override fun onLost(network: Network) {
-                val currentConnected = isInternetConnected()
-                wasInternetOn = currentConnected
-                logD("Network lost. wasInternetOn=$wasInternetOn")
-            }
-
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                if (hasInternet) {
-                    checkAndTriggerInternetRestored()
-                } else {
-                    wasInternetOn = false
-                }
-            }
-        }
-
-        networkCallback = callback
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                cm.registerDefaultNetworkCallback(callback)
-            } else {
-                val request = NetworkRequest.Builder()
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .build()
-                cm.registerNetworkCallback(request, callback)
-            }
-        } catch (e: Exception) {
-            logW("Failed to register network callback: ${e.message}")
-        }
-    }
-
-    private fun checkAndTriggerInternetRestored() {
-        val currentConnected = isInternetConnected()
-        if (!wasInternetOn && currentConnected) {
-            logI("Wi-Fi / Internet state changed from OFF -> ON. Triggering syncDateTimeAndCheckUpdate()...")
-            wasInternetOn = true
-            syncDateTimeAndCheckUpdate()
-        } else {
-            wasInternetOn = currentConnected
-        }
-    }
-
-    private fun stopNetworkMonitoring() {
-        networkCallback?.let { callback ->
-            try {
-                val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                cm?.unregisterNetworkCallback(callback)
-            } catch (e: Exception) {
-                logW("Failed to unregister network callback: ${e.message}")
-            }
-        }
-        networkCallback = null
-    }
 
     /**
      * Synchronizes system date & time via NTP when internet is available,
@@ -310,9 +235,17 @@ class AppUpdateViewModel @Inject constructor(
         return Util.isInternetConnected(context.applicationContext)
     }
 
+    fun checkInternetStateChanged(onInternetRestored: () -> Unit) {
+        val currentInternetOn = isInternetConnected()
+        if (!wasInternetOn && currentInternetOn) {
+            logI("Wi-Fi / Internet state changed from OFF -> ON. Triggering onInternetRestored...")
+            onInternetRestored()
+        }
+        wasInternetOn = currentInternetOn
+    }
+
     override fun onCleared() {
         super.onCleared()
-        stopNetworkMonitoring()
         isRetryRequested = false
         workJob?.cancel()
         downloadJob?.cancel()

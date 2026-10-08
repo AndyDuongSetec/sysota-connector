@@ -212,7 +212,15 @@ class AppUpdateHelper {
 
         activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onCreate(owner: LifecycleOwner) {
+                viewModel.checkInternetStateChanged {}
                 viewModel.syncDateTimeAndCheckUpdate()
+            }
+
+            override fun onResume(owner: LifecycleOwner) {
+                viewModel.checkInternetStateChanged {
+                    logI("[AppUpdateHelper] Wi-Fi / Internet state changed from OFF -> ON in onResume. Triggering syncDateTimeAndCheckUpdate()...")
+                    viewModel.syncDateTimeAndCheckUpdate()
+                }
             }
 
             override fun onDestroy(owner: LifecycleOwner) {
